@@ -2,13 +2,12 @@ version: 2.1
 
 jobs:
   backend_ci:
-    # FIX: Corrected working_directory to account for repository's root folder structure
+ 
     working_directory: ~/project/SecureBankingPaymentPortal-main
     docker:
       - image: cimg/node:18.19
     steps:
-      - checkout:
-          path: ~/project/SecureBankingPaymentPortal-main # Ensure checkout goes into the right path
+      - checkout
       - restore_cache:
           keys:
             - backend-deps-{{ checksum "Backend/package-lock.json" }}
@@ -16,6 +15,7 @@ jobs:
       - run:
           name: Install backend dependencies
           command: |
+            # FIX: 'cd Backend' now works because working_directory is correct
             cd Backend
             npm install 
       - save_cache:
@@ -43,13 +43,12 @@ jobs:
             - coverage/lcov.info
 
   frontend_ci:
-    # FIX: Corrected working_directory to account for repository's root folder structure
+   
     working_directory: ~/project/SecureBankingPaymentPortal-main
     docker:
       - image: cimg/node:18.19
     steps:
-      - checkout:
-          path: ~/project/SecureBankingPaymentPortal-main # Ensure checkout goes into the right path
+      - checkout
       - restore_cache:
           keys:
             - frontend-deps-{{ checksum "Frontend/package-lock.json" }}
@@ -72,7 +71,6 @@ jobs:
             npm test -- --watchAll=false --coverage
       - run:
           name: Build frontend
-          # NOTE: This step requires the local code fix for the 'isLoading' unused variable.
           command: |
             cd Frontend
             npm run build
@@ -82,17 +80,16 @@ jobs:
             - coverage/lcov.info
 
   sonarqube_scan:
-    # FIX: Corrected working_directory to account for repository's root folder structure
+
     working_directory: ~/project/SecureBankingPaymentPortal-main
     docker:
       - image: cimg/node:18.19
     steps:
-      - checkout:
-          path: ~/project/SecureBankingPaymentPortal-main # Ensure checkout goes into the right path
+      - checkout
       - attach_workspace:
-          at: ~/project/SecureBankingPaymentPortal-main/Backend
+          at: Backend
       - attach_workspace:
-          at: ~/project/SecureBankingPaymentPortal-main/Frontend
+          at: Frontend
       
       - run:
           name: Install SonarScanner CLI
@@ -112,13 +109,12 @@ jobs:
               -Dsonar.javascript.lcov.reportPaths=Backend/coverage/lcov.info,Frontend/coverage/lcov.info
 
   security_scan:
-    # FIX: Corrected working_directory to account for repository's root folder structure
+
     working_directory: ~/project/SecureBankingPaymentPortal-main
     docker:
       - image: cimg/node:20.10
     steps:
-      - checkout:
-          path: ~/project/SecureBankingPaymentPortal-main # Ensure checkout goes into the right path
+      - checkout
       - run:
           name: Install Core Utilities for Security Tools
           command: |
@@ -139,8 +135,10 @@ jobs:
       - run:
           name: Install OSV-Scanner
           command: |
-            # FIX: Updated URL path and installation flag
-            curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh -s -- -b . v1.6.2
+            # FIX: Direct download of the Linux binary to bypass 404 on install script.
+            curl -sSL https://github.com/google/osv-scanner/releases/download/v1.6.2/osv-scanner_1.6.2_linux_amd64.tar.gz -o osv-scanner.tar.gz
+            tar -xzf osv-scanner.tar.gz osv-scanner # Extract binary
+            chmod +x osv-scanner
             
       - run:
           name: Run OSV-Scanner on lockfiles
