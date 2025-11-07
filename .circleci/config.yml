@@ -1,13 +1,5 @@
 version: 2.1
 
-# Define the repository subfolder name for all jobs
-# This is required because 'git checkout' places the code inside a directory named after the repo.
-# Change this variable if your repo folder name is different.
-parameters:
-  repo_folder:
-    type: string
-    default: "SecureBankingPaymentPortal-main"
-
 jobs:
   backend_ci:
     docker:
@@ -19,35 +11,35 @@ jobs:
       - restore_cache:
           keys:
             # FIX: Cache key must include the repo_folder path
-            - backend-deps-{{ checksum << parameters.repo_folder >> "/Backend/package-lock.json" }}
+            - backend-deps-{{ checksum "SecureBankingPaymentPortal-main/Backend/package-lock.json" }}
             - backend-deps-
       - run:
           name: Install backend dependencies
           command: |
             # FIX: Must 'cd' into the full path
-            cd << parameters.repo_folder >>/Backend
+            cd SecureBankingPaymentPortal-main/Backend
             npm install 
       - save_cache:
-          key: backend-deps-{{ checksum << parameters.repo_folder >> "/Backend/package-lock.json" }}
+          key: backend-deps-{{ checksum "SecureBankingPaymentPortal-main/Backend/package-lock.json" }}
           paths:
-            - << parameters.repo_folder >>/Backend/node_modules
+            - SecureBankingPaymentPortal-main/Backend/node_modules
       - run:
           name: Type check backend
           command: |
-            cd << parameters.repo_folder >>/Backend
+            cd SecureBankingPaymentPortal-main/Backend
             npx tsc --noEmit
       - run:
           name: Test backend (with coverage)
           command: |
-            cd << parameters.repo_folder >>/Backend
+            cd SecureBankingPaymentPortal-main/Backend
             npm test -- --ci --passWithNoTests --watchAll=false --coverage
       - run:
           name: Build backend
           command: |
-            cd << parameters.repo_folder >>/Backend
+            cd SecureBankingPaymentPortal-main/Backend
             npm run build
       - persist_to_workspace:
-          root: << parameters.repo_folder >>/Backend
+          root: SecureBankingPaymentPortal-main/Backend
           paths:
             - coverage/lcov.info
 
@@ -60,32 +52,32 @@ jobs:
       - restore_cache:
           keys:
             # FIX: Cache key must include the repo_folder path
-            - frontend-deps-{{ checksum << parameters.repo_folder >> "/Frontend/package-lock.json" }}
+            - frontend-deps-{{ checksum "SecureBankingPaymentPortal-main/Frontend/package-lock.json" }}
             - frontend-deps-
       - run:
           name: Install frontend dependencies
           command: |
             # FIX: Must 'cd' into the full path
-            cd << parameters.repo_folder >>/Frontend
+            cd SecureBankingPaymentPortal-main/Frontend
             npm install 
       - save_cache:
-          key: frontend-deps-{{ checksum << parameters.repo_folder >> "/Frontend/package-lock.json" }}
+          key: frontend-deps-{{ checksum "SecureBankingPaymentPortal-main/Frontend/package-lock.json" }}
           paths:
-            - << parameters.repo_folder >>/Frontend/node_modules
+            - SecureBankingPaymentPortal-main/Frontend/node_modules
       - run:
           name: Test frontend (with coverage)
           environment:
             CI: "true"
           command: |
-            cd << parameters.repo_folder >>/Frontend
+            cd SecureBankingPaymentPortal-main/Frontend
             npm test -- --watchAll=false --coverage
       - run:
           name: Build frontend
           command: |
-            cd << parameters.repo_folder >>/Frontend
+            cd SecureBankingPaymentPortal-main/Frontend
             npm run build
       - persist_to_workspace:
-          root: << parameters.repo_folder >>/Frontend
+          root: SecureBankingPaymentPortal-main/Frontend
           paths:
             - coverage/lcov.info
 
@@ -97,9 +89,9 @@ jobs:
       - checkout
       # FIX: Must attach the workspace to the subfolder directory
       - attach_workspace:
-          at: << parameters.repo_folder >>/Backend
+          at: SecureBankingPaymentPortal-main/Backend
       - attach_workspace:
-          at: << parameters.repo_folder >>/Frontend
+          at: SecureBankingPaymentPortal-main/Frontend
       - run:
           name: Install SonarScanner CLI
           command: npm install -g sonar-scanner
@@ -107,7 +99,7 @@ jobs:
           name: Run SonarQube Analysis
           command: |
             # FIX: Paths for sources/tests and reports must include the repo_folder path
-            cd << parameters.repo_folder >>
+            cd SecureBankingPaymentPortal-main
             npx sonar-scanner \
               -Dsonar.projectKey=ST10303347vc_secure-payment-portal \
               -Dsonar.host.url=https://sonarcloud.io \
@@ -132,7 +124,7 @@ jobs:
       - run:
           name: Install Gitleaks
           command: |
-            cd << parameters.repo_folder >>
+            cd SecureBankingPaymentPortal-main
             curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.29.0/gitleaks_8.29.0_linux_x64.tar.gz -o gitleaks.tar.gz
             tar -xzf gitleaks.tar.gz gitleaks
             chmod +x gitleaks
@@ -140,14 +132,14 @@ jobs:
       - run:
           name: Run Gitleaks secret scan
           command: |
-            cd << parameters.repo_folder >>
+            cd SecureBankingPaymentPortal-main
             ./gitleaks detect --no-git --redact
             
       - run:
           name: Install OSV-Scanner
           command: |
             # FIX: Direct download with -L flag to ensure correct binary download
-            cd << parameters.repo_folder >>
+            cd SecureBankingPaymentPortal-main
             curl -sSL -L https://github.com/google/osv-scanner/releases/download/v1.6.2/osv-scanner_1.6.2_linux_amd64.tar.gz -o osv-scanner.tar.gz
             tar -xzf osv-scanner.tar.gz osv-scanner
             chmod +x osv-scanner
@@ -155,7 +147,7 @@ jobs:
       - run:
           name: Run OSV-Scanner on lockfiles
           command: |
-            cd << parameters.repo_folder >>
+            cd SecureBankingPaymentPortal-main
             ./osv-scanner --lockfile Backend/package-lock.json --lockfile Frontend/package-lock.json
 
 workflows:
