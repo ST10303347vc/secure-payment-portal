@@ -1,0 +1,158 @@
+version: 2.1
+
+# Simple CircleCI pipeline for monorepo (Frontend + Backend)
+
+jobs:
+  backend_ci:
+    docker:
+      - image: cimg/node:18.19
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - backend-deps-{{ checksum "Backend/package-lock.json" }}
+            - backend-deps-
+      - run:
+          name: Install backend dependencies
+          # We keep the 'cd Backend' based on your confirmation that the folder exists.
+          command: |
+            cd Backend
+            npm install 
+      - save_cache:
+          key: backend-deps-{{ checksum "Backend/package-lock.json" }}
+          paths:
+            - Backend/node_modules
+      - run:
+          name: Type check backend
+          command: |
+            cd Backend
+            npx tsc --noEmit
+      - run:
+          name: Test backend (with coverage)
+          command: |
+            cd Backend
+            npm test -- --ci --passWithNoTests --watchAll=false --coverage
+      - run:
+          name: Build backend
+          command: |
+            cd Backend
+            npm run build
+      # --- PERSIST: Pass coverage report to the workspace for SonarQube ---
+      - persist_to_workspace:
+          root: Backend
+          paths:
+            - coverage/lcov.info
+      # -------------------------------------------------------------------
+
+  frontend_ci:
+    docker:
+      - image: cimg/node:18.19
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - frontend-deps-{{ checksum "Frontend/package-lock.json" }}
+            - frontend-deps-
+      - run:
+          name: Install frontend dependencies
+          command: |
+            cd Frontend
+            npm install 
+      - save_cache:
+          key: frontend-deps-{{ checksum "Frontend/package-lock.json" }}
+          paths:
+            - Frontend/node_modules
+      - run:
+          name: Test frontend (with coverage)
+          environment:
+            CI: "true"
+          command: |
+            cd Frontend
+            npm test -- --watchAll=false --coverage
+      - run:
+          name: Build frontend
+          # NOTE: This will only pass if you fix the 'isLoading' unused variable error locally.
+          command: |
+            cd Frontend
+            npm run build
+      # --- PERSIST: Pass coverage report to the workspace for SonarQube ---
+      - persist_to_workspace:
+          root: Frontend
+          paths:
+            - coverage/lcov.info
+      # -------------------------------------------------------------------
+
+  sonarqube_scan:
+    docker:
+      - image: cimg/node:18.19
+    working_directory: ~/project
+    steps:
+      - checkout
+      # --- ATTACH: Retrieve coverage files from other jobs ---
+      - attach_workspace:
+          at: ~/project/Backend
+      - attach_workspace:
+          at: ~/project/Frontend
+      # --------------------------------------------------------
+      
+      - run:
+          name: Install SonarScanner CLI
+          command: npm install -g sonar-scanner
+          
+      - run:
+          name: Run SonarQube Analysis
+          command: |
+            npx sonar-scanner \
+              -Dsonar.projectKey=ST10303347vc_secure-payment-portal \
+              -Dsonar.host.url=https://sonarcloud.io \
+              -Dsonar.login=$SONAR_TOKEN \
+              -Dsonar.sources=Backend,Frontend \
+              -Dsonar.exclusions=node_modules/**,logs/** \
+              -Dsonar.tests=Backend,Frontend \
+              -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx \
+              -Dsonar.javascript.lcov.reportPaths=Backend/coverage/lcov.info,Frontend/coverage/lcov.info
+
+  security_scan:
+    docker:
+      - image: cimg/node:20.10
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Install Core Utilities for Security Tools
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y curl unzip
+      - run:
+          name: Install Gitleaks
+          command: |
+            curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.29.0/gitleaks_8.29.0_linux_x64.tar.gz -o gitleaks.tar.gz
+            tar -xzf gitleaks.tar.gz gitleaks
+            chmod +x gitleaks
+            
+      - run:
+          name: Run Gitleaks secret scan
+          # NOTE: This will only pass if you fix the secret leak locally and update your repo history.
+          command: |
+            ./gitleaks detect --no-git --redact
+      - run:
+          name: Install OSV-Scanner
+          command: |
+            curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/scripts/install.sh | sh -s v1.6.2
+      - run:
+          name: Run OSV-Scanner on lockfiles
+          command: |
+            ./osv-scanner --lockfile Backend/package-lock.json --lockfile Frontend/package-lock.json
+
+workflows:
+  build_test_and_scan:
+    jobs:
+      - backend_ci
+      - frontend_ci
+      - sonarqube_scan:
+          requires:
+            - backend_ci
+            - frontend_ci
+      - security_scan
