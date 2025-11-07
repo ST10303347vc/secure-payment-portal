@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, feature/** ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+      - name: Install Backend deps
+        working-directory: Backend
+        run: npm ci
+      - name: Lint Backend
+        working-directory: Backend
+        run: npm run lint
+      - name: Type Check Backend
+        working-directory: Backend
+        run: npx tsc --noEmit
+      - name: Test Backend
+        working-directory: Backend
+        run: npm test -- --ci --passWithNoTests
+      - name: Build Backend
+        working-directory: Backend
+        run: npm run build
+
+  frontend:
+    name: Frontend Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+      - name: Install Frontend deps
+        working-directory: Frontend
+        run: npm ci
+      - name: Test Frontend
+        working-directory: Frontend
+        run: npm test -- --watchAll=false
+      - name: Build Frontend
+        working-directory: Frontend
+        run: npm run build
+
+  security:
+    name: Security Scans
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OSV-Scanner
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
+      - name: Scan Backend dependencies
+        run: |
+          if [ -f Backend/package-lock.json ]; then osv-scanner --lockfile=Backend/package-lock.json; fi
+      - name: Scan Frontend dependencies
+        run: |
+          if [ -f Frontend/package-lock.json ]; then osv-scanner --lockfile=Frontend/package-lock.json; fi
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: --no-git -v

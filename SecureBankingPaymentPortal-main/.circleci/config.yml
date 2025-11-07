@@ -1,0 +1,102 @@
+version: 2.1
+
+# Simple CircleCI pipeline for monorepo (Frontend + Backend)
+# Mirrors core GitHub Actions CI: install, test, build; adds optional security scans.
+
+jobs:
+  backend_ci:
+    docker:
+      - image: cimg/node:18.19
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - backend-deps-{{ checksum "Backend/package-lock.json" }}
+            - backend-deps-
+      - run:
+          name: Install backend dependencies
+          command: |
+            cd Backend
+            npm ci
+      - save_cache:
+          key: backend-deps-{{ checksum "Backend/package-lock.json" }}
+          paths:
+            - Backend/node_modules
+      - run:
+          name: Type check backend
+          command: |
+            cd Backend
+            npx tsc --noEmit
+      - run:
+          name: Test backend
+          command: |
+            cd Backend
+            npm test -- --ci --passWithNoTests --watchAll=false
+      - run:
+          name: Build backend
+          command: |
+            cd Backend
+            npm run build
+
+  frontend_ci:
+    docker:
+      - image: cimg/node:18.19
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - frontend-deps-{{ checksum "Frontend/package-lock.json" }}
+            - frontend-deps-
+      - run:
+          name: Install frontend dependencies
+          command: |
+            cd Frontend
+            npm ci
+      - save_cache:
+          key: frontend-deps-{{ checksum "Frontend/package-lock.json" }}
+          paths:
+            - Frontend/node_modules
+      - run:
+          name: Test frontend
+          environment:
+            CI: "true"
+          command: |
+            cd Frontend
+            npm test -- --watchAll=false
+      - run:
+          name: Build frontend
+          command: |
+            cd Frontend
+            npm run build
+
+  security_scan:
+    docker:
+      - image: cimg/node:20.10
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Install Gitleaks
+          command: |
+            curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | bash
+      - run:
+          name: Run Gitleaks secret scan
+          command: |
+            ./gitleaks detect --no-git --redact
+      - run:
+          name: Install OSV-Scanner
+          command: |
+            curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/scripts/install.sh | sh -s v1.6.2
+      - run:
+          name: Run OSV-Scanner on lockfiles
+          command: |
+            ./osv-scanner --lockfile Backend/package-lock.json --lockfile Frontend/package-lock.json
+
+workflows:
+  build_test_and_scan:
+    jobs:
+      - backend_ci
+      - frontend_ci
+      - security_scan
