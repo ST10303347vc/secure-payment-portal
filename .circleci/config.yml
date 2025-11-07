@@ -6,19 +6,17 @@ jobs:
       - image: cimg/node:18.19
     working_directory: ~/project 
     steps:
-      - checkout: # FIX: Force checkout into a subfolder named 'repo'
+      - checkout:
           path: repo
       - restore_cache:
           keys:
-            # FIX: Cache key must include the 'repo' path
             - backend-deps-{{ checksum "repo/Backend/package-lock.json" }}
             - backend-deps-
       - run:
           name: Install backend dependencies
           command: |
-            # FIX: Must 'cd' into the full path
             cd repo/Backend
-            npm install 
+            npm install
       - save_cache:
           key: backend-deps-{{ checksum "repo/Backend/package-lock.json" }}
           paths:
@@ -49,18 +47,16 @@ jobs:
     working_directory: ~/project
     steps:
       - checkout:
-          path: repo # FIX: Force checkout into a subfolder named 'repo'
+          path: repo
       - restore_cache:
           keys:
-            # FIX: Cache key must include the 'repo' path
             - frontend-deps-{{ checksum "repo/Frontend/package-lock.json" }}
             - frontend-deps-
       - run:
           name: Install frontend dependencies
           command: |
-            # FIX: Must 'cd' into the full path
             cd repo/Frontend
-            npm install 
+            npm install
       - save_cache:
           key: frontend-deps-{{ checksum "repo/Frontend/package-lock.json" }}
           paths:
@@ -88,7 +84,7 @@ jobs:
     working_directory: ~/project
     steps:
       - checkout:
-          path: repo # FIX: Force checkout into a subfolder named 'repo'
+          path: repo
       - attach_workspace:
           at: repo
       
@@ -115,7 +111,7 @@ jobs:
     working_directory: ~/project
     steps:
       - checkout:
-          path: repo # FIX: Force checkout into a subfolder named 'repo'
+          path: repo
       - run:
           name: Install Core Utilities for Security Tools
           command: |
@@ -138,10 +134,8 @@ jobs:
       - run:
           name: Install OSV-Scanner
           command: |
-            # FIX: Use tar -axzf to autodetect compression format
             cd repo
-            curl -sSL -L https://github.com/google/osv-scanner/releases/download/v1.6.2/osv-scanner_1.6.2_linux_amd64.tar.gz -o osv-scanner.tar.gz
-            tar -axzf osv-scanner.tar.gz osv-scanner
+            curl -sSL -L https://github.com/google/osv-scanner/releases/download/v1.6.2/osv-scanner_1.6.2_linux_amd64 -o osv-scanner
             chmod +x osv-scanner
             
       - run:
