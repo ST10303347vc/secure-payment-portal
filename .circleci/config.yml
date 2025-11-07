@@ -4,42 +4,40 @@ jobs:
   backend_ci:
     docker:
       - image: cimg/node:18.19
-    # FIX: Set working directory to the default for a flat repo structure
     working_directory: ~/project 
     steps:
-      - checkout
+      - checkout:
+          path: repo
       - restore_cache:
           keys:
-            # Assume flat structure for cache
-            - backend-deps-{{ checksum "Backend/package-lock.json" }}
+            - backend-deps-{{ checksum "repo/Backend/package-lock.json" }}
             - backend-deps-
       - run:
           name: Install backend dependencies
           command: |
-            # Original successful path
-            cd Backend
-            npm install 
+            cd repo/Backend
+            npm install
       - save_cache:
-          key: backend-deps-{{ checksum "Backend/package-lock.json" }}
+          key: backend-deps-{{ checksum "repo/Backend/package-lock.json" }}
           paths:
-            - Backend/node_modules
+            - repo/Backend/node_modules
       - run:
           name: Type check backend
           command: |
-            cd Backend
+            cd repo/Backend
             npx tsc --noEmit
       - run:
           name: Test backend (with coverage)
           command: |
-            cd Backend
+            cd repo/Backend
             npm test -- --ci --passWithNoTests --watchAll=false --coverage
       - run:
           name: Build backend
           command: |
-            cd Backend
+            cd repo/Backend
             npm run build
       - persist_to_workspace:
-          root: .
+          root: repo
           paths:
             - Backend/coverage/lcov.info
 
@@ -48,36 +46,35 @@ jobs:
       - image: cimg/node:18.19
     working_directory: ~/project
     steps:
-      - checkout
+      - checkout:
+          path: repo
       - restore_cache:
           keys:
-            # Assume flat structure for cache
-            - frontend-deps-{{ checksum "Frontend/package-lock.json" }}
+            - frontend-deps-{{ checksum "repo/Frontend/package-lock.json" }}
             - frontend-deps-
       - run:
           name: Install frontend dependencies
           command: |
-            # Original successful path
-            cd Frontend
-            npm install 
+            cd repo/Frontend
+            npm install
       - save_cache:
-          key: frontend-deps-{{ checksum "Frontend/package-lock.json" }}
+          key: frontend-deps-{{ checksum "repo/Frontend/package-lock.json" }}
           paths:
-            - Frontend/node_modules
+            - repo/Frontend/node_modules
       - run:
           name: Test frontend (with coverage)
           environment:
             CI: "true"
           command: |
-            cd Frontend
+            cd repo/Frontend
             npm test -- --watchAll=false --coverage
       - run:
           name: Build frontend
           command: |
-            cd Frontend
+            cd repo/Frontend
             npm run build
       - persist_to_workspace:
-          root: .
+          root: repo
           paths:
             - Frontend/coverage/lcov.info
 
@@ -86,9 +83,10 @@ jobs:
       - image: cimg/node:18.19
     working_directory: ~/project
     steps:
-      - checkout
+      - checkout:
+          path: repo
       - attach_workspace:
-          at: ~/project
+          at: repo
       
       - run:
           name: Install SonarScanner CLI
@@ -96,6 +94,7 @@ jobs:
       - run:
           name: Run SonarQube Analysis
           command: |
+            cd repo
             npx sonar-scanner \
               -Dsonar.projectKey=ST10303347vc_secure-payment-portal \
               -Dsonar.host.url=https://sonarcloud.io \
@@ -111,7 +110,8 @@ jobs:
       - image: cimg/node:20.10
     working_directory: ~/project
     steps:
-      - checkout
+      - checkout:
+          path: repo
       - run:
           name: Install Core Utilities for Security Tools
           command: |
@@ -120,6 +120,7 @@ jobs:
       - run:
           name: Install Gitleaks
           command: |
+            cd repo
             curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.29.0/gitleaks_8.29.0_linux_x64.tar.gz -o gitleaks.tar.gz
             tar -xzf gitleaks.tar.gz gitleaks
             chmod +x gitleaks
@@ -127,17 +128,21 @@ jobs:
       - run:
           name: Run Gitleaks secret scan
           command: |
+            cd repo
             ./gitleaks detect --no-git --redact
             
       - run:
           name: Install OSV-Scanner
           command: |
+            cd repo
             curl -sSL -L https://github.com/google/osv-scanner/releases/download/v1.6.2/osv-scanner_1.6.2_linux_amd64 -o osv-scanner
             chmod +x osv-scanner
             
       - run:
           name: Run OSV-Scanner on lockfiles
           command: |
+            # FIX: Adding 'cd repo' before running the scanner to find lockfiles
+            cd repo
             ./osv-scanner --lockfile Backend/package-lock.json --lockfile Frontend/package-lock.json
 
 workflows:
