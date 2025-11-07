@@ -91,12 +91,18 @@ jobs:
       - run:
           name: Install SonarScanner CLI
           command: npm install -g sonar-scanner
+      
+      # --- THIS IS THE NEW FIX ---
+      - run:
+          name: Fix SonarScanner permissions
+          command: sudo chmod +x /usr/local/lib/node_modules/sonar-scanner/bin/sonar-scanner
+      # --------------------------
+
       - run:
           name: Run SonarQube Analysis
           command: |
             cd repo
-            # FIX: Use direct path to binary to avoid npx permission issue
-            /usr/local/lib/node_modules/sonar-scanner/bin/sonar-scanner \
+            npx sonar-scanner \
               -Dsonar.projectKey=ST10303347vc_secure-payment-portal \
               -Dsonar.host.url=https://sonarcloud.io \
               -Dsonar.login=$SONAR_TOKEN \
