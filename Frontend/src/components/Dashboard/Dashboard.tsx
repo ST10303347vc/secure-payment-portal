@@ -4,7 +4,7 @@ import {
   Button, 
   Alert,
   Grid,
-  // REMOVED: LoadingSpinner is defined but never used
+  
 } from '../../styles/GlobalStyles';
 import { PaymentForm } from '../Payment/PaymentForm';
 import { SecureStorage } from '../../utils/security';
@@ -40,7 +40,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   // The warning was on the assignment in handlePaymentSubmit, but that use is necessary.
   // The original log may have been confusing, but generally, if an unused variable is reported, 
   // and it is used later, the original definition is kept. Let's keep the `isLoading` state.
-  const [isLoading, setIsLoading] = useState(false);
+  const [, setIsLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState<string>('');
 
   // Debug: Log user data on component mount

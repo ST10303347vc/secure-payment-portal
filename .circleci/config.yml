@@ -1,21 +1,20 @@
 version: 2.1
 
-# Simple CircleCI pipeline for monorepo (Frontend + Backend)
-
 jobs:
   backend_ci:
+    # FIX: Corrected working_directory to account for repository's root folder structure
+    working_directory: ~/project/SecureBankingPaymentPortal-main
     docker:
       - image: cimg/node:18.19
-    working_directory: ~/project
     steps:
-      - checkout
+      - checkout:
+          path: ~/project/SecureBankingPaymentPortal-main # Ensure checkout goes into the right path
       - restore_cache:
           keys:
             - backend-deps-{{ checksum "Backend/package-lock.json" }}
             - backend-deps-
       - run:
           name: Install backend dependencies
-          # We keep the 'cd Backend' based on your confirmation that the folder exists.
           command: |
             cd Backend
             npm install 
@@ -38,19 +37,19 @@ jobs:
           command: |
             cd Backend
             npm run build
-      # --- PERSIST: Pass coverage report to the workspace for SonarQube ---
       - persist_to_workspace:
           root: Backend
           paths:
             - coverage/lcov.info
-      # -------------------------------------------------------------------
 
   frontend_ci:
+    # FIX: Corrected working_directory to account for repository's root folder structure
+    working_directory: ~/project/SecureBankingPaymentPortal-main
     docker:
       - image: cimg/node:18.19
-    working_directory: ~/project
     steps:
-      - checkout
+      - checkout:
+          path: ~/project/SecureBankingPaymentPortal-main # Ensure checkout goes into the right path
       - restore_cache:
           keys:
             - frontend-deps-{{ checksum "Frontend/package-lock.json" }}
@@ -73,29 +72,27 @@ jobs:
             npm test -- --watchAll=false --coverage
       - run:
           name: Build frontend
-          # NOTE: This will only pass if you fix the 'isLoading' unused variable error locally.
+          # NOTE: This step requires the local code fix for the 'isLoading' unused variable.
           command: |
             cd Frontend
             npm run build
-      # --- PERSIST: Pass coverage report to the workspace for SonarQube ---
       - persist_to_workspace:
           root: Frontend
           paths:
             - coverage/lcov.info
-      # -------------------------------------------------------------------
 
   sonarqube_scan:
+    # FIX: Corrected working_directory to account for repository's root folder structure
+    working_directory: ~/project/SecureBankingPaymentPortal-main
     docker:
       - image: cimg/node:18.19
-    working_directory: ~/project
     steps:
-      - checkout
-      # --- ATTACH: Retrieve coverage files from other jobs ---
+      - checkout:
+          path: ~/project/SecureBankingPaymentPortal-main # Ensure checkout goes into the right path
       - attach_workspace:
-          at: ~/project/Backend
+          at: ~/project/SecureBankingPaymentPortal-main/Backend
       - attach_workspace:
-          at: ~/project/Frontend
-      # --------------------------------------------------------
+          at: ~/project/SecureBankingPaymentPortal-main/Frontend
       
       - run:
           name: Install SonarScanner CLI
@@ -115,11 +112,13 @@ jobs:
               -Dsonar.javascript.lcov.reportPaths=Backend/coverage/lcov.info,Frontend/coverage/lcov.info
 
   security_scan:
+    # FIX: Corrected working_directory to account for repository's root folder structure
+    working_directory: ~/project/SecureBankingPaymentPortal-main
     docker:
       - image: cimg/node:20.10
-    working_directory: ~/project
     steps:
-      - checkout
+      - checkout:
+          path: ~/project/SecureBankingPaymentPortal-main # Ensure checkout goes into the right path
       - run:
           name: Install Core Utilities for Security Tools
           command: |
@@ -134,13 +133,15 @@ jobs:
             
       - run:
           name: Run Gitleaks secret scan
-          # NOTE: This will only pass if you fix the secret leak locally and update your repo history.
           command: |
             ./gitleaks detect --no-git --redact
+            
       - run:
           name: Install OSV-Scanner
           command: |
-            curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/scripts/install.sh | sh -s v1.6.2
+            # FIX: Updated URL path and installation flag
+            curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh -s -- -b . v1.6.2
+            
       - run:
           name: Run OSV-Scanner on lockfiles
           command: |
