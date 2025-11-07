@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { validateIBAN, validateSWIFT } from '../utils/validation';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * @route   POST /api/validate/iban
