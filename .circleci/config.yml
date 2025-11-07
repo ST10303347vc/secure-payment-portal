@@ -10,36 +10,39 @@ jobs:
           path: repo
       - restore_cache:
           keys:
-            - backend-deps-{{ checksum "repo/Backend/package-lock.json" }}
+            # FIX: Corrected to lowercase 'backend'
+            - backend-deps-{{ checksum "repo/backend/package-lock.json" }}
             - backend-deps-
       - run:
           name: Install backend dependencies
           command: |
-            cd repo/Backend
+            # FIX: Corrected to lowercase 'backend'
+            cd repo/backend
             npm install
       - save_cache:
-          key: backend-deps-{{ checksum "repo/Backend/package-lock.json" }}
+          key: backend-deps-{{ checksum "repo/backend/package-lock.json" }}
           paths:
-            - repo/Backend/node_modules
+            - repo/backend/node_modules
       - run:
           name: Type check backend
           command: |
-            cd repo/Backend
+            cd repo/backend
             npx tsc --noEmit
       - run:
           name: Test backend (with coverage)
           command: |
-            cd repo/Backend
+            cd repo/backend
             npm test -- --ci --passWithNoTests --watchAll=false --coverage
       - run:
           name: Build backend
           command: |
-            cd repo/Backend
+            cd repo/backend
             npm run build
       - persist_to_workspace:
           root: repo
           paths:
-            - Backend/coverage/lcov.info
+            # FIX: Corrected to lowercase 'backend'
+            - backend/coverage/lcov.info
 
   frontend_ci:
     docker:
@@ -99,11 +102,12 @@ jobs:
               -Dsonar.projectKey=ST10303347vc_secure-payment-portal \
               -Dsonar.host.url=https://sonarcloud.io \
               -Dsonar.login=$SONAR_TOKEN \
-              -Dsonar.sources=Backend,Frontend \
+              # FIX: Corrected to lowercase 'backend'
+              -Dsonar.sources=backend,Frontend \
               -Dsonar.exclusions=node_modules/**,logs/** \
-              -Dsonar.tests=Backend,Frontend \
+              -Dsonar.tests=backend,Frontend \
               -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx \
-              -Dsonar.javascript.lcov.reportPaths=Backend/coverage/lcov.info,Frontend/coverage/lcov.info
+              -Dsonar.javascript.lcov.reportPaths=backend/coverage/lcov.info,Frontend/coverage/lcov.info
 
   security_scan:
     docker:
@@ -141,9 +145,9 @@ jobs:
       - run:
           name: Run OSV-Scanner on lockfiles
           command: |
-            # FIX: Adding 'cd repo' before running the scanner to find lockfiles
             cd repo
-            ./osv-scanner --lockfile Backend/package-lock.json --lockfile Frontend/package-lock.json
+            # FIX: Corrected to lowercase 'backend'
+            ./osv-scanner --lockfile backend/package-lock.json --lockfile Frontend/package-lock.json
 
 workflows:
   build_test_and_scan:
